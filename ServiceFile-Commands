@@ -1,0 +1,52 @@
+export CONSUL_HTTP_ADDR="https://consul-quickstart-xxxxxxxxx.consul.xxxxxxxx.aws.hashicorp.cloud"
+export CONSUL_HTTP_TOKEN=$(terraform output -raw consul_root_token)
+consul members
+consul services register -name=lp-api
+consul services register -name=lp-auth
+consul services register -name=lp-kyx
+consul services register -name=lp-user
+consul services register -name=lp-notifications
+curl --header "X-Consul-Token: xxxxxxxx" https://consul-quickstart-xxxxxx.consul.xxxxxxx.aws.hashicorp.cloud/v1/agent/services | jq
+curl --header "X-Consul-Token: xxxxxxxxx" https://consul-quickstart-xxxxxx.consul.xxxxxxxxx.aws.hashicorp.cloud/v1/catalog/service/lp-notifications | jq
+consul catalog services
+consul intention create lp-api lp-notifications
+consul intention create lp-auth lp-notifications
+consul intention create lp-kyx lp-notifications
+consul intention create lp-user lp-notifications
+consul intention create lp-notifications lp-api
+consul intention create lp-notifications lp-user
+
+# Service file Config with Sidecar Proxy with upstreams:
+service {
+  name = "lp-notifications"
+
+connect {
+    sidecar_service {
+      proxy {
+  upstreams = [
+    {
+      destination_name = "lp-user"
+      local_bind_port = 9001
+    },
+    {
+      destination_name = "lp-api"
+      local_bind_port = 9003
+    }
+  ]
+}
+    }
+  }
+}
+-----------------------------------------------------
+# Service file Config with Sidecar Proxy with no upstreams:
+service {
+  name = "lp-notifications"
+
+connect {
+    sidecar_service {
+      proxy {
+  upstreams = []
+}
+    }
+  }
+}
